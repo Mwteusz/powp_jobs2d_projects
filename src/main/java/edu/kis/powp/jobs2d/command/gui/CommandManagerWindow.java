@@ -5,6 +5,7 @@ import java.awt.event.ActionEvent;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -15,6 +16,9 @@ import edu.kis.legacy.drawer.panel.DrawPanelController;
 import edu.kis.legacy.drawer.shape.line.BasicLine;
 import edu.kis.powp.appbase.gui.WindowComponent;
 import edu.kis.powp.jobs2d.Job2dDriver;
+import edu.kis.powp.jobs2d.command.*;
+import edu.kis.powp.jobs2d.command.manager.CommandManager;
+import edu.kis.powp.jobs2d.drivers.CommandEditor;
 import edu.kis.powp.jobs2d.command.CommandImporter;
 import edu.kis.powp.jobs2d.command.DriverCommand;
 import edu.kis.powp.jobs2d.command.ImporterFactory;
@@ -32,7 +36,9 @@ public class CommandManagerWindow extends JFrame implements WindowComponent {
 
     private String observerListString;
     private JTextArea observerListField;
-
+    private CommandEditor commandEditor;
+    private JTextArea explanationField;
+    private final JPanel drawArea;
     private DriverManager driverManager;
     final private Job2dDriver previewLineDriver;
 
@@ -46,7 +52,7 @@ public class CommandManagerWindow extends JFrame implements WindowComponent {
 
     public CommandManagerWindow(ICommandManager commandManager, DriverManager driverManager1) {
         this.setTitle("Command Manager");
-        this.setSize(400, 400);
+        this.setSize(400, 500);
         Container content = this.getContentPane();
         content.setLayout(new GridBagLayout());
 
@@ -71,8 +77,19 @@ public class CommandManagerWindow extends JFrame implements WindowComponent {
         c.weighty = 1;
         content.add(currentCommandField, c);
 
+
+        explanationField = new JTextArea("");
+        explanationField.setEditable(false);
+        c.fill = GridBagConstraints.BOTH;
+        c.weightx = 1;
+        c.gridx = 0;
+        c.weighty = 1;
+        content.add(explanationField, c);
+        this.updateExplanationField();
+
         this.driverManager = driverManager1;
         driverManager.setCurrentDriver(new LineDriverAdapter(drawPanelController,new BasicLine(),"preview"));
+
         commandPreviewPanel = new DefaultDrawerFrame();
         drawPanelController = new DrawPanelController();
         drawPanelController.initialize(commandPreviewPanel.getDrawArea());
@@ -81,7 +98,7 @@ public class CommandManagerWindow extends JFrame implements WindowComponent {
         c.weightx = 1;
         c.gridx = 0;
         c.weighty = 5;
-        JPanel drawArea = commandPreviewPanel.getDrawArea();
+        this.drawArea = commandPreviewPanel.getDrawArea();
         drawArea.setBorder(BorderFactory.createLineBorder(Color.BLACK, 2));
         content.add(drawArea, c);
 
@@ -125,8 +142,10 @@ public class CommandManagerWindow extends JFrame implements WindowComponent {
         c.gridx = 0;
         c.weighty = 1;
         content.add(btnClearObservers, c);
-    }
 
+        this.commandEditor = new CommandEditor(drawArea, (CompoundCommand) (commandManager.getCurrentCommand()), previewLineDriver, drawPanelController, commandPreviewPanel);
+
+    }
     private void importCommandFromFile() {
         try {
             JFileChooser chooser = new JFileChooser();
@@ -159,9 +178,17 @@ public class CommandManagerWindow extends JFrame implements WindowComponent {
 
     public void updateCurrentCommandField() {
         currentCommandField.setText(commandManager.getCurrentCommandString());
-
         drawPanelController.clearPanel();
-        commandManager.getCurrentCommand().execute(previewLineDriver);
+        commandEditor.setCompoundCommand((CompoundCommand) commandManager.getCurrentCommand());
+        if (commandManager.getCurrentCommand() != null)
+            commandManager.getCurrentCommand().execute(previewLineDriver);
+        System.out.println("updateCurrentCommandField");
+    }
+
+    public void updateExplanationField() {
+        explanationField.setText(
+                "LMB - Drag to move points\n" +
+                "RMB - Open context menu");
     }
 
     public void deleteObservers() {
